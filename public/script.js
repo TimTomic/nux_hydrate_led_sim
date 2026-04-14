@@ -15,7 +15,7 @@ let customSequence = [];
 let currentStepIndex = 0;
 let stepStartTime = null;
 
-const typeNames = { pulse: 'Pulsieren', blink: 'Blinken', spin: 'Umlaufen', fill: 'Auffüllen', switch: 'Farbe wechseln', rider: 'Knight Rider' };
+const typeNames = { pulse: 'Pulsieren', blink: 'Blinken', spin: 'Umlaufen', fill: 'Auffüllen', switch: 'Farbe wechseln', rider: 'Knight Rider', altSpin: 'Rotieren' };
 let editingVariantId = null;
 let editingCategory = null;
 let editingStepIndex = null;
@@ -583,6 +583,23 @@ function renderStepPhase(stepConfig, phase) {
                 setLED(i, color.r, color.g, color.b, intensity);
             }
         }
+    } else if (type === 'altSpin') {
+        // Rotating segment pattern: 5 bright arcs and 5 dark arcs rotate around
+        // the ring. One animation cycle = one full revolution.
+        const nBands = 5;
+        const segmentSize = config.numLeds / (nBands * 2); // 6 LEDs per on/off segment
+        const offsetLeds = phase * config.numLeds;
+        for (let i = 0; i < config.numLeds; i++) {
+            const pos = (i + offsetLeds) % config.numLeds;
+            const segIndex = Math.floor(pos / segmentSize);
+            if (segIndex % 2 === 0) {
+                // Soft edge: fade the edges of each segment for a smoother look
+                const posInSeg = pos % segmentSize;
+                const edgeFade = Math.min(posInSeg, segmentSize - posInSeg) / (segmentSize * 0.3);
+                const intensity = Math.min(1, edgeFade) * brightness;
+                setLED(i, color.r, color.g, color.b, intensity);
+            }
+        }
     }
 }
 
@@ -627,19 +644,22 @@ function renderStepFinalState(step) {
             setLED(i, color2.r, color2.g, color2.b, brightness);
         }
     } else if (type === 'rider') {
-        // Hold at the bounce point (bottom/top)
-        const pos1 = Math.floor(config.numLeds / 2);
-        const pos2 = config.numLeds - pos1;
+        // Hold at start position (top)
         const arcSize = Math.floor(config.numLeds / 10);
         for (let i = 0; i < config.numLeds; i++) {
-            let dist1 = Math.abs(i - pos1);
-            if (dist1 > config.numLeds / 2) dist1 = config.numLeds - dist1;
-            let dist2 = Math.abs(i - pos2);
-            if (dist2 > config.numLeds / 2) dist2 = config.numLeds - dist2;
-            const minDist = Math.min(dist1, dist2);
-            if (minDist < arcSize) {
-                const intensity = (1 - (minDist / arcSize)) * brightness;
-                setLED(i, color.r, color.g, color.b, intensity);
+            let dist = Math.min(i, config.numLeds - i);
+            if (dist < arcSize) {
+                setLED(i, color.r, color.g, color.b, (1 - dist / arcSize) * brightness);
+            }
+        }
+    } else if (type === 'altSpin') {
+        // Hold with segments at rest position
+        const nBands = 5;
+        const segmentSize = config.numLeds / (nBands * 2);
+        for (let i = 0; i < config.numLeds; i++) {
+            const segIndex = Math.floor(i / segmentSize);
+            if (segIndex % 2 === 0) {
+                setLED(i, color.r, color.g, color.b, brightness);
             }
         }
     }

@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart LED Ring Simulator</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <header>
+            <h1>LED Ring Simulator</h1>
+            <p>Konfiguriere das Feedback für das Gerät</p>
+        </header>
+
+        <main>
+            <div class="tabs">
+                <button id="tab-presets" class="tab-btn active">Presets</button>
+                <button id="tab-editor" class="tab-btn">Custom Editor</button>
+            </div>
+
+            <div class="controls-wrapper">
+                <div id="presets-panel" class="controls-panel">
+                    <div class="control-group">
+                        <label for="feedback-type">Kategorie / Feedback-Art</label>
+                        <select id="feedback-type">
+                            <!-- Populated dynamically by JS -->
+                        </select>
+                    </div>
+
+                    <div class="control-group">
+                        <label for="feedback-variant">Variante</label>
+                        <select id="feedback-variant">
+                            <!-- Options will be populated by JS -->
+                        </select>
+                    </div>
+                    
+                    <div class="control-group">
+                        <button id="trigger-btn">Auslösen / Starten</button>
+                        <div class="button-row">
+                            <button id="edit-preset-btn" class="secondary">Bearbeiten</button>
+                            <button id="delete-preset-btn" class="danger">Löschen</button>
+                        </div>
+                        <button id="stop-btn" class="secondary">Stoppen</button>
+                    </div>
+                </div>
+
+                <div id="editor-panel" class="controls-panel hidden">
+                    <div id="sequence-list" class="sequence-list">
+                        <!-- Custom sequence steps will be rendered here -->
+                        <div class="empty-sequence">Noch keine Schritte hinzugefügt.</div>
+                    </div>
+
+                    <div class="sequence-builder">
+                        <div class="control-group">
+                            <label for="custom-color">Farbe</label>
+                            <input type="color" id="custom-color" value="#3b82f6">
+                        </div>
+                        
+                        <div class="control-group">
+                            <label for="custom-type">Art der Animation</label>
+                            <select id="custom-type">
+                                <option value="pulse">Pulsieren</option>
+                                <option value="blink">Blinken</option>
+                                <option value="spin">Umlaufen</option>
+                                <option value="fill">Auffüllen</option>
+                            </select>
+                        </div>
+
+                        <div class="control-group">
+                            <label for="custom-speed">Geschwindigkeit</label>
+                            <input type="range" id="custom-speed" min="1" max="100" value="50">
+                        </div>
+
+                        <div class="control-group">
+                            <label for="custom-brightness">Helligkeit (%)</label>
+                            <input type="range" id="custom-brightness" min="10" max="100" value="100">
+                        </div>
+
+                        <div class="control-group">
+                            <label for="custom-reps">Wiederholungen pro Schritt</label>
+                            <input type="number" id="custom-reps" min="1" max="50" value="1">
+                        </div>
+
+                        <div class="control-group">
+                            <button id="add-step-btn">➕ Schritt hinzufügen</button>
+                        </div>
+                    </div>
+
+                    <hr class="separator">
+
+                    <div class="control-group">
+                        <label for="custom-name">Name des Presets</label>
+                        <input type="text" id="custom-name" placeholder="Eigener Name (optional)">
+                    </div>
+
+                    <div class="control-group">
+                        <label for="custom-category">Speichern in Kategorie</label>
+                        <input type="text" id="custom-category" list="category-list" placeholder="Wähle oder erstelle neue..." value="notification">
+                        <datalist id="category-list">
+                            <!-- Populated dynamically -->
+                        </datalist>
+                    </div>
+
+                    <div class="control-group">
+                        <button id="test-custom-btn">▶️ Gesamte Sequenz testen</button>
+                        <button id="clear-custom-btn" class="secondary">🗑️ Sequenz leeren</button>
+                        <button id="save-custom-btn" class="secondary">💾 Als Preset speichern</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="simulator-panel">
+                <!-- Device mock consisting of a dark surface and LED ring -->
+                <div class="device">
+                    <div id="led-ring" class="led-ring">
+                        <!-- LED dots injected via JS -->
+                    </div>
+                    <div class="device-center"></div>
+                </div>
+            </div>
+        </main>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>

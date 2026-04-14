@@ -76,7 +76,7 @@ main {
 .controls-panel {
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
+    gap: 2rem; /* Increased from 1.5rem */
 }
 
 .hidden {
@@ -87,16 +87,16 @@ main {
 .tabs {
     flex: 1 1 100%;
     display: flex;
-    gap: 1rem;
-    margin-bottom: 2rem;
+    gap: 1.5rem;
+    margin-bottom: 2.5rem;
     border-bottom: 1px solid var(--panel-border);
-    padding-bottom: 1rem;
+    padding-bottom: 1.2rem;
 }
 
 .tab-btn {
     background: transparent;
     color: var(--text-secondary);
-    padding: 0.5rem 1rem;
+    padding: 0.6rem 1.2rem;
     border-radius: 8px;
     font-size: 1rem;
     font-weight: 600;
@@ -115,15 +115,24 @@ main {
 .control-group {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 0.8rem; /* Increased from 0.5rem */
 }
 
 label {
-    font-size: 0.9rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.85rem;
     font-weight: 600;
     color: var(--text-secondary);
     text-transform: uppercase;
     letter-spacing: 1px;
+}
+
+label span {
+    color: var(--accent-color);
+    font-family: monospace;
+    font-size: 1rem;
 }
 
 select, input[type="number"], input[type="text"] {
@@ -204,9 +213,10 @@ input[type="range"]::-webkit-slider-thumb:hover {
     min-height: 80px;
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 0.6rem;
     max-height: 250px;
     overflow-y: auto;
+    margin-bottom: 1.5rem;
 }
 
 .empty-sequence {
@@ -287,7 +297,13 @@ button.warning-btn {
 .separator {
     border: none;
     border-top: 1px solid var(--panel-border);
-    margin: 1rem 0;
+    margin: 2rem 0 1.5rem;
+}
+
+/* Specific spacing for the add-step button */
+#add-step-btn {
+    margin-top: 1.5rem;
+    width: 100%;
 }
 
 button {

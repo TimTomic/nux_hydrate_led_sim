@@ -15,7 +15,7 @@ let customSequence = [];
 let currentStepIndex = 0;
 let stepStartTime = null;
 
-const typeNames = { pulse: 'Pulsieren', blink: 'Blinken', spin: 'Umlaufen', fill: 'Auffüllen', switch: 'Farbe wechseln' };
+const typeNames = { pulse: 'Pulsieren', blink: 'Blinken', spin: 'Umlaufen', fill: 'Auffüllen', switch: 'Farbe wechseln', rider: 'Knight Rider' };
 let editingVariantId = null;
 let editingCategory = null;
 let editingStepIndex = null;
@@ -131,12 +131,30 @@ function initControls() {
     const fillAmountGroup = document.getElementById('fill-amount-group');
     
     const updateVisibility = () => {
-        color2Group.style.display = (customTypeSelect.value === 'switch') ? 'flex' : 'none';
-        fillAmountGroup.style.display = (customTypeSelect.value === 'fill') ? 'flex' : 'none';
+        const val = customTypeSelect.value;
+        color2Group.style.display = (val === 'switch') ? 'flex' : 'none';
+        fillAmountGroup.style.display = (val === 'fill') ? 'flex' : 'none';
     };
     
     customTypeSelect.addEventListener('change', updateVisibility);
     updateVisibility(); // initial check
+
+    // Slider value displays
+    const speedIn = document.getElementById('custom-speed');
+    const speedVal = document.getElementById('val-speed');
+    speedIn.addEventListener('input', () => speedVal.textContent = speedIn.value);
+
+    const brightIn = document.getElementById('custom-brightness');
+    const brightVal = document.getElementById('val-brightness');
+    brightIn.addEventListener('input', () => brightVal.textContent = brightIn.value);
+
+    const fillIn = document.getElementById('custom-fill-amount');
+    const fillVal = document.getElementById('val-fill');
+    fillIn.addEventListener('input', () => fillVal.textContent = fillIn.value);
+
+    const holdIn = document.getElementById('custom-hold');
+    const holdVal = document.getElementById('val-hold');
+    holdIn.addEventListener('input', () => holdVal.textContent = holdIn.value);
 
     triggerBtn.addEventListener('click', () => {
         startAnimation(variantSelect.value);
@@ -201,7 +219,8 @@ function initCustomEditor() {
             speed: parseInt(document.getElementById('custom-speed').value, 10),
             brightness: parseInt(document.getElementById('custom-brightness').value, 10) / 100,
             reps: parseInt(document.getElementById('custom-reps').value, 10) || 1,
-            fillAmount: parseInt(document.getElementById('custom-fill-amount').value, 10) || 100
+            fillAmount: parseInt(document.getElementById('custom-fill-amount').value, 10) || 100,
+            holdTime: parseInt(document.getElementById('custom-hold').value, 10) || 0
         };
         
         if (editingStepIndex !== null) {
@@ -311,12 +330,13 @@ function renderSequence() {
             : `background-color: ${step.colorStr}`;
 
         const extraInfo = step.type === 'fill' ? ` | Ziel: ${step.fillAmount}%` : '';
+        const holdText = step.holdTime > 0 ? ` | Hold: ${step.holdTime}ms` : '';
 
         item.innerHTML = `
             <div class="seq-color" style="${colorDisplay}"></div>
             <div class="seq-info">
                 <strong>${idx + 1}. ${typeNames[step.type]}</strong>
-                <span>${step.reps}x Wiederholungen | Speed: ${step.speed}${extraInfo}</span>
+                <span>${step.reps}x | Speed: ${step.speed}${extraInfo}${holdText}</span>
             </div>
             <div class="seq-actions">
                 <button class="edit-step-btn" data-idx="${idx}">✎</button>
@@ -340,6 +360,13 @@ function renderSequence() {
             document.getElementById('custom-brightness').value = step.brightness * 100;
             document.getElementById('custom-reps').value = step.reps;
             if (step.fillAmount) document.getElementById('custom-fill-amount').value = step.fillAmount;
+            if (step.holdTime !== undefined) document.getElementById('custom-hold').value = step.holdTime;
+            
+            // Sync slider labels
+            document.getElementById('val-speed').textContent = step.speed;
+            document.getElementById('val-brightness').textContent = step.brightness * 100;
+            document.getElementById('val-fill').textContent = step.fillAmount || 100;
+            document.getElementById('val-hold').textContent = step.holdTime || 0;
             
             // UI Update
             document.getElementById('add-step-btn').innerHTML = "↻ Schritt aktualisieren";
@@ -422,11 +449,10 @@ function stopAnimation() {
 }
 
 function loop(timestamp) {
-    clearLEDs(); // always ensure fresh start per frame
-
     if (currentAnimation === 'custom') {
         animCombi(timestamp);
     } else {
+        clearLEDs(); // Keep original behavior for hardcoded ones
         const elapsed = timestamp - startTime;
         switch (currentAnimation) {
             case 'pulsing_blue': animPulsingBlue(elapsed); break;
@@ -452,36 +478,57 @@ function animCombi(timestamp) {
     }
     
     if (currentStepIndex >= customSequence.length) {
-        // finished sequence
         stopAnimation();
         return;
     }
     
     const stepConfig = customSequence[currentStepIndex];
-    const { color, type, speed, brightness, reps } = stepConfig;
+    const { type, speed, reps, holdTime } = stepConfig;
     
-    // Time relative to when the current step started
+    const baseDuration = (5000 - (speed * 48));
+    const animationTotalTime = baseDuration * reps;
+    const stepTotalTime = animationTotalTime + (holdTime || 0);
     const elapsedStep = timestamp - stepStartTime;
-    const baseDuration = 5000 - (speed * 48);
     
-    const phase = (elapsedStep % baseDuration) / baseDuration; 
-    const totalCycles = Math.floor(elapsedStep / baseDuration);
-    
-    // If we've completed the requisite cycles, move to next step
-    if (totalCycles >= reps) {
+    if (elapsedStep >= stepTotalTime) {
         currentStepIndex++;
         stepStartTime = timestamp;
-        
-        // immediately render the next step context this frame
         if (currentStepIndex < customSequence.length) {
             animCombi(timestamp); 
         }
         return;
     }
 
-    // Render current step phase
+    clearLEDs();
+
+    // For cyclic effects (pulse, blink) with a hold time: cut the animation
+    // at the PEAK of the last cycle (reps-0.5 cycles) instead of letting it
+    // complete and go dark again. e.g. pulse at phase=0.5 = maximum brightness.
+    // For directional effects (fill, switch) no adjustment needed - they end
+    // at a natural "complete" state at phase=1.0.
+    let switchToHoldAt;
+    if ((holdTime || 0) > 0 && (type === 'pulse' || type === 'blink')) {
+        switchToHoldAt = baseDuration * (reps - 0.5);
+    } else {
+        switchToHoldAt = animationTotalTime;
+    }
+
+    if (elapsedStep < switchToHoldAt) {
+        const phase = (elapsedStep % baseDuration) / baseDuration;
+        renderStepPhase(stepConfig, phase);
+    } else {
+        // Hold phase: render the "completed" final state
+        renderStepFinalState(stepConfig);
+    }
+}
+
+/**
+ * Renders a step definition at its current phase (0 to 1).
+ */
+function renderStepPhase(stepConfig, phase) {
+    const { color, type, brightness, fillAmount, colorStr2, color2 } = stepConfig;
+
     if (type === 'pulse') {
-        // Sine wave pulse
         const cycle = (Math.sin(phase * Math.PI * 2 - Math.PI/2) + 1) / 2; 
         const currentB = cycle * brightness;
         for (let i = 0; i < config.numLeds; i++) {
@@ -505,7 +552,7 @@ function animCombi(timestamp) {
             }
         }
     } else if (type === 'fill') {
-        const targetLeds = Math.floor((stepConfig.fillAmount / 100) * config.numLeds);
+        const targetLeds = Math.floor((fillAmount / 100) * config.numLeds);
         const filled = Math.floor(phase * targetLeds);
         for (let i = 0; i < config.numLeds; i++) {
             if (i <= filled) {
@@ -513,13 +560,87 @@ function animCombi(timestamp) {
             }
         }
     } else if (type === 'switch') {
-        // Linearly interpolate between color and color2 based on phase
-        const r = Math.round(color.r + (stepConfig.color2.r - color.r) * phase);
-        const g = Math.round(color.g + (stepConfig.color2.g - color.g) * phase);
-        const b = Math.round(color.b + (stepConfig.color2.b - color.b) * phase);
-        
+        const r = Math.round(color.r + (color2.r - color.r) * phase);
+        const g = Math.round(color.g + (color2.g - color.g) * phase);
+        const b = Math.round(color.b + (color2.b - color.b) * phase);
         for (let i = 0; i < config.numLeds; i++) {
             setLED(i, r, g, b, brightness);
+        }
+    } else if (type === 'rider') {
+        const oscillation = 1 - Math.abs(1 - (phase * 2)); 
+        const halfCircle = config.numLeds / 2;
+        const pos1 = Math.floor(oscillation * halfCircle);
+        const pos2 = config.numLeds - pos1;
+        const arcSize = Math.floor(config.numLeds / 10);
+        for (let i = 0; i < config.numLeds; i++) {
+            let dist1 = Math.abs(i - pos1);
+            if (dist1 > config.numLeds / 2) dist1 = config.numLeds - dist1;
+            let dist2 = Math.abs(i - pos2);
+            if (dist2 > config.numLeds / 2) dist2 = config.numLeds - dist2;
+            const minDist = Math.min(dist1, dist2);
+            if (minDist < arcSize) {
+                const intensity = (1 - (minDist / arcSize)) * brightness;
+                setLED(i, color.r, color.g, color.b, intensity);
+            }
+        }
+    }
+}
+
+/**
+ * Renders a specific step definition at its "Final" or "Hold" state.
+ */
+function renderStepFinalState(step) {
+    const { color, type, brightness, fillAmount, color2 } = step;
+    
+    if (type === 'pulse') {
+        // Hold at peak brightness instead of 0
+        for (let i = 0; i < config.numLeds; i++) {
+            setLED(i, color.r, color.g, color.b, brightness);
+        }
+    } else if (type === 'blink') {
+        // Hold at ON state
+        for (let i = 0; i < config.numLeds; i++) {
+            setLED(i, color.r, color.g, color.b, brightness);
+        }
+    } else if (type === 'spin') {
+        // Hold at the very end of the spin (phase 1.0)
+        const pos = config.numLeds - 1;
+        const arcSize = Math.floor(config.numLeds / 6);
+        for (let i = 0; i < config.numLeds; i++) {
+            let dist = Math.abs(i - pos);
+            if (dist > config.numLeds / 2) dist = config.numLeds - dist;
+            if (dist < arcSize) {
+                const intensity = (1 - (dist / arcSize)) * brightness;
+                setLED(i, color.r, color.g, color.b, intensity);
+            }
+        }
+    } else if (type === 'fill') {
+        const targetLeds = Math.floor((fillAmount / 100) * config.numLeds);
+        for (let i = 0; i < config.numLeds; i++) {
+            if (i <= targetLeds) {
+                setLED(i, color.r, color.g, color.b, brightness);
+            }
+        }
+    } else if (type === 'switch') {
+        // Hold at the target color (color2)
+        for (let i = 0; i < config.numLeds; i++) {
+            setLED(i, color2.r, color2.g, color2.b, brightness);
+        }
+    } else if (type === 'rider') {
+        // Hold at the bounce point (bottom/top)
+        const pos1 = Math.floor(config.numLeds / 2);
+        const pos2 = config.numLeds - pos1;
+        const arcSize = Math.floor(config.numLeds / 10);
+        for (let i = 0; i < config.numLeds; i++) {
+            let dist1 = Math.abs(i - pos1);
+            if (dist1 > config.numLeds / 2) dist1 = config.numLeds - dist1;
+            let dist2 = Math.abs(i - pos2);
+            if (dist2 > config.numLeds / 2) dist2 = config.numLeds - dist2;
+            const minDist = Math.min(dist1, dist2);
+            if (minDist < arcSize) {
+                const intensity = (1 - (minDist / arcSize)) * brightness;
+                setLED(i, color.r, color.g, color.b, intensity);
+            }
         }
     }
 }

@@ -71,16 +71,22 @@
                                 <option value="spin">Umlaufen</option>
                                 <option value="fill">Auffüllen</option>
                                 <option value="switch">Farbe wechseln (A -> B)</option>
+                                <option value="rider">Knight Rider (Bounce)</option>
                             </select>
                         </div>
 
                         <div class="control-group">
-                            <label for="custom-speed">Geschwindigkeit</label>
+                            <label for="custom-hold">Haltezeit am Ende (ms): <span id="val-hold">0</span></label>
+                            <input type="range" id="custom-hold" min="0" max="10000" step="100" value="0">
+                        </div>
+
+                        <div class="control-group">
+                            <label for="custom-speed">Geschwindigkeit: <span id="val-speed">50</span></label>
                             <input type="range" id="custom-speed" min="1" max="100" value="50">
                         </div>
 
                         <div class="control-group">
-                            <label for="custom-brightness">Helligkeit (%)</label>
+                            <label for="custom-brightness">Helligkeit (%): <span id="val-brightness">100</span></label>
                             <input type="range" id="custom-brightness" min="10" max="100" value="100">
                         </div>
 
@@ -90,7 +96,7 @@
                         </div>
 
                         <div id="fill-amount-group" class="control-group">
-                            <label for="custom-fill-amount">Füllmenge (%)</label>
+                            <label for="custom-fill-amount">Füllmenge (%): <span id="val-fill">100</span></label>
                             <input type="range" id="custom-fill-amount" min="1" max="100" value="100">
                         </div>
 

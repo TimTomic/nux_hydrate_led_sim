@@ -128,17 +128,15 @@ function initControls() {
 
     const customTypeSelect = document.getElementById('custom-type');
     const color2Group = document.getElementById('color-2-group');
+    const fillAmountGroup = document.getElementById('fill-amount-group');
     
-    const updateColor2Visibility = () => {
-        if (customTypeSelect.value === 'switch') {
-            color2Group.style.display = 'flex';
-        } else {
-            color2Group.style.display = 'none';
-        }
+    const updateVisibility = () => {
+        color2Group.style.display = (customTypeSelect.value === 'switch') ? 'flex' : 'none';
+        fillAmountGroup.style.display = (customTypeSelect.value === 'fill') ? 'flex' : 'none';
     };
     
-    customTypeSelect.addEventListener('change', updateColor2Visibility);
-    updateColor2Visibility(); // initial check
+    customTypeSelect.addEventListener('change', updateVisibility);
+    updateVisibility(); // initial check
 
     triggerBtn.addEventListener('click', () => {
         startAnimation(variantSelect.value);
@@ -202,7 +200,8 @@ function initCustomEditor() {
             type: document.getElementById('custom-type').value,
             speed: parseInt(document.getElementById('custom-speed').value, 10),
             brightness: parseInt(document.getElementById('custom-brightness').value, 10) / 100,
-            reps: parseInt(document.getElementById('custom-reps').value, 10) || 1
+            reps: parseInt(document.getElementById('custom-reps').value, 10) || 1,
+            fillAmount: parseInt(document.getElementById('custom-fill-amount').value, 10) || 100
         };
         
         if (editingStepIndex !== null) {
@@ -311,11 +310,13 @@ function renderSequence() {
             ? `background: linear-gradient(90deg, ${step.colorStr} 0%, ${step.colorStr2} 100%)`
             : `background-color: ${step.colorStr}`;
 
+        const extraInfo = step.type === 'fill' ? ` | Ziel: ${step.fillAmount}%` : '';
+
         item.innerHTML = `
             <div class="seq-color" style="${colorDisplay}"></div>
             <div class="seq-info">
                 <strong>${idx + 1}. ${typeNames[step.type]}</strong>
-                <span>${step.reps}x Wiederholungen | Speed: ${step.speed}</span>
+                <span>${step.reps}x Wiederholungen | Speed: ${step.speed}${extraInfo}</span>
             </div>
             <div class="seq-actions">
                 <button class="edit-step-btn" data-idx="${idx}">✎</button>
@@ -338,6 +339,7 @@ function renderSequence() {
             document.getElementById('custom-speed').value = step.speed;
             document.getElementById('custom-brightness').value = step.brightness * 100;
             document.getElementById('custom-reps').value = step.reps;
+            if (step.fillAmount) document.getElementById('custom-fill-amount').value = step.fillAmount;
             
             // UI Update
             document.getElementById('add-step-btn').innerHTML = "↻ Schritt aktualisieren";
@@ -503,7 +505,8 @@ function animCombi(timestamp) {
             }
         }
     } else if (type === 'fill') {
-        const filled = Math.floor(phase * config.numLeds);
+        const targetLeds = Math.floor((stepConfig.fillAmount / 100) * config.numLeds);
+        const filled = Math.floor(phase * targetLeds);
         for (let i = 0; i < config.numLeds; i++) {
             if (i <= filled) {
                 setLED(i, color.r, color.g, color.b, brightness);

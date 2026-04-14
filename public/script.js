@@ -15,9 +15,10 @@ let customSequence = [];
 let currentStepIndex = 0;
 let stepStartTime = null;
 
-const typeNames = { pulse: 'Pulsieren', blink: 'Blinken', spin: 'Umlaufen', fill: 'Auffüllen' };
+const typeNames = { pulse: 'Pulsieren', blink: 'Blinken', spin: 'Umlaufen', fill: 'Auffüllen', switch: 'Farbe wechseln' };
 let editingVariantId = null;
 let editingCategory = null;
+let editingStepIndex = null;
 
 // Initialization
 document.addEventListener('DOMContentLoaded', async () => {
@@ -125,6 +126,20 @@ function initControls() {
     typeSelect.addEventListener('change', updateVariants);
     updateVariants(); // initial population
 
+    const customTypeSelect = document.getElementById('custom-type');
+    const color2Group = document.getElementById('color-2-group');
+    
+    const updateColor2Visibility = () => {
+        if (customTypeSelect.value === 'switch') {
+            color2Group.style.display = 'flex';
+        } else {
+            color2Group.style.display = 'none';
+        }
+    };
+    
+    customTypeSelect.addEventListener('change', updateColor2Visibility);
+    updateColor2Visibility(); // initial check
+
     triggerBtn.addEventListener('click', () => {
         startAnimation(variantSelect.value);
     });
@@ -182,12 +197,25 @@ function initCustomEditor() {
         const stepDef = {
             color: hexToRgb(document.getElementById('custom-color').value),
             colorStr: document.getElementById('custom-color').value,
+            color2: hexToRgb(document.getElementById('custom-color-2').value),
+            colorStr2: document.getElementById('custom-color-2').value,
             type: document.getElementById('custom-type').value,
             speed: parseInt(document.getElementById('custom-speed').value, 10),
             brightness: parseInt(document.getElementById('custom-brightness').value, 10) / 100,
             reps: parseInt(document.getElementById('custom-reps').value, 10) || 1
         };
-        customSequence.push(stepDef);
+        
+        if (editingStepIndex !== null) {
+            // Update existing step
+            customSequence[editingStepIndex] = stepDef;
+            editingStepIndex = null;
+            document.getElementById('add-step-btn').innerHTML = "➕ Schritt hinzufügen";
+            document.getElementById('add-step-btn').classList.remove('warning-btn');
+        } else {
+            // Add new step
+            customSequence.push(stepDef);
+        }
+        
         renderSequence();
     });
 
@@ -278,15 +306,46 @@ function renderSequence() {
         const item = document.createElement('div');
         item.classList.add('sequence-item');
         
+        // Show gradient if it's a switch mode
+        const colorDisplay = step.type === 'switch' 
+            ? `background: linear-gradient(90deg, ${step.colorStr} 0%, ${step.colorStr2} 100%)`
+            : `background-color: ${step.colorStr}`;
+
         item.innerHTML = `
-            <div class="seq-color" style="background-color: ${step.colorStr}"></div>
+            <div class="seq-color" style="${colorDisplay}"></div>
             <div class="seq-info">
                 <strong>${idx + 1}. ${typeNames[step.type]}</strong>
                 <span>${step.reps}x Wiederholungen | Speed: ${step.speed}</span>
             </div>
-            <button class="del-step-btn" data-idx="${idx}">X</button>
+            <div class="seq-actions">
+                <button class="edit-step-btn" data-idx="${idx}">✎</button>
+                <button class="del-step-btn" data-idx="${idx}">✕</button>
+            </div>
         `;
         listEl.appendChild(item);
+    });
+    
+    document.querySelectorAll('.edit-step-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const index = parseInt(e.currentTarget.getAttribute('data-idx'), 10);
+            const step = customSequence[index];
+            
+            // Load values into inputs
+            editingStepIndex = index;
+            document.getElementById('custom-color').value = step.colorStr;
+            if (step.colorStr2) document.getElementById('custom-color-2').value = step.colorStr2;
+            document.getElementById('custom-type').value = step.type;
+            document.getElementById('custom-speed').value = step.speed;
+            document.getElementById('custom-brightness').value = step.brightness * 100;
+            document.getElementById('custom-reps').value = step.reps;
+            
+            // UI Update
+            document.getElementById('add-step-btn').innerHTML = "↻ Schritt aktualisieren";
+            document.getElementById('add-step-btn').classList.add('warning-btn'); // optional styling
+            
+            // Trigger UI logic for color 2 visibility
+            document.getElementById('custom-type').dispatchEvent(new Event('change'));
+        });
     });
     
     document.querySelectorAll('.del-step-btn').forEach(btn => {
@@ -449,6 +508,15 @@ function animCombi(timestamp) {
             if (i <= filled) {
                 setLED(i, color.r, color.g, color.b, brightness);
             }
+        }
+    } else if (type === 'switch') {
+        // Linearly interpolate between color and color2 based on phase
+        const r = Math.round(color.r + (stepConfig.color2.r - color.r) * phase);
+        const g = Math.round(color.g + (stepConfig.color2.g - color.g) * phase);
+        const b = Math.round(color.b + (stepConfig.color2.b - color.b) * phase);
+        
+        for (let i = 0; i < config.numLeds; i++) {
+            setLED(i, r, g, b, brightness);
         }
     }
 }
